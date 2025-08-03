@@ -36,6 +36,7 @@ def test_upload_and_merge(tmp_path):
     csv1 = b"id,name\n1,Alice\n2,Bob\n"
     files = {"file": ("people.csv", csv1, "text/csv")}
     data = [("table_name", "people"), ("primary_key", "id")]
+
     resp1 = client.post("/upload", files=files, data=data)
     assert resp1.status_code == 200
     assert resp1.json()["rows"] == 2
@@ -43,6 +44,7 @@ def test_upload_and_merge(tmp_path):
     csv2 = b"id,name\n2,Bobby\n3,Charlie\n"
     files = {"file": ("people.csv", csv2, "text/csv")}
     data = [("table_name", "people"), ("primary_key", "id")]
+
     resp2 = client.post("/upload", files=files, data=data)
     assert resp2.status_code == 200
 
@@ -104,3 +106,4 @@ def test_upload_and_merge_composite_key(tmp_path):
         [2, 1, "Bobby"],
         [3, 1, "Charlie"],
     ]
+

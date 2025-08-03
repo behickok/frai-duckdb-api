@@ -34,7 +34,9 @@ def run_query(request: QueryRequest):
 async def upload_table(
     file: UploadFile = File(...),
     table_name: str = Form(...),
+
     primary_key: list[str] | None = Form(None),
+
 ) -> dict:
     """Upload a CSV or Parquet file and merge it into a DuckDB table."""
 
@@ -67,6 +69,7 @@ async def upload_table(
             )
             if primary_key:
                 pk_cols = ", ".join(col.strip() for col in primary_key)
+
                 conn.execute(
                     f"ALTER TABLE {table_name} ADD PRIMARY KEY ({pk_cols})"
                 )
@@ -86,6 +89,7 @@ async def upload_table(
                     status_code=400,
                     detail="primary_key must match existing table primary key",
                 )
+
             conn.execute(
                 f"INSERT OR REPLACE INTO {table_name} SELECT * FROM {read_func}('{tmp_path}')"
             )
