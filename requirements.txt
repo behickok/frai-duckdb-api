@@ -3,3 +3,4 @@ uvicorn
 duckdb
 pydantic
 httpx
+python-multipart
