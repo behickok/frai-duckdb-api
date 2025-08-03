@@ -10,9 +10,7 @@ client = TestClient(app)
 def test_query_duckdb():
     response = client.post("/query", json={"sql": "SELECT 42 AS answer"})
     assert response.status_code == 200
-    data = response.json()
-    assert data["rows"] == [[42]]
-    assert data["columns"] == ["answer"]
+    assert response.json() == [{"answer": 42}]
 
 
 def test_query_parquet(tmp_path):
@@ -27,7 +25,7 @@ def test_query_parquet(tmp_path):
         },
     )
     assert response.status_code == 200
-    assert response.json()["rows"] == [[1]]
+    assert response.json() == [{"id": 1}]
 
 
 def test_upload_and_merge(tmp_path):
@@ -52,10 +50,10 @@ def test_upload_and_merge(tmp_path):
         "/query", json={"sql": "SELECT * FROM people ORDER BY id"}
     )
     assert query_resp.status_code == 200
-    assert query_resp.json()["rows"] == [
-        [1, "Alice"],
-        [2, "Bobby"],
-        [3, "Charlie"],
+    assert query_resp.json() == [
+        {"id": 1, "name": "Alice"},
+        {"id": 2, "name": "Bobby"},
+        {"id": 3, "name": "Charlie"},
     ]
 
 
@@ -81,10 +79,10 @@ def test_upload_skips_blank_primary_key(tmp_path):
         "/query", json={"sql": "SELECT * FROM people ORDER BY id"}
     )
     assert query_resp.status_code == 200
-    assert query_resp.json()["rows"] == [
-        [1, "Alice"],
-        [2, "Bobby"],
-        [3, "Charlie"],
+    assert query_resp.json() == [
+        {"id": 1, "name": "Alice"},
+        {"id": 2, "name": "Bobby"},
+        {"id": 3, "name": "Charlie"},
     ]
 
 
@@ -122,9 +120,9 @@ def test_upload_and_merge_composite_key(tmp_path):
         "/query", json={"sql": "SELECT * FROM people ORDER BY id, subid"}
     )
     assert query_resp.status_code == 200
-    assert query_resp.json()["rows"] == [
-        [1, 1, "Alice"],
-        [2, 1, "Bobby"],
-        [3, 1, "Charlie"],
+    assert query_resp.json() == [
+        {"id": 1, "subid": 1, "name": "Alice"},
+        {"id": 2, "subid": 1, "name": "Bobby"},
+        {"id": 3, "subid": 1, "name": "Charlie"},
     ]
 
