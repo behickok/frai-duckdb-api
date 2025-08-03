@@ -22,12 +22,16 @@ This is a minimal FastAPI application that exposes a RESTful interface for execu
 4. **Upload data**
    ```bash
    curl -X POST http://localhost:8000/upload \\
-        -F "file=@path/to/data.csv" \\
-        -F "table_name=your_table" \\
-        -F "primary_key=id"
+
+       -F "file=@path/to/data.csv" \\
+       -F "table_name=your_table" \\
+       -F "primary_key=id" \\
+       -F "primary_key=other_id"
    ```
    The endpoint accepts CSV or Parquet files. If the table exists, the data
-   is merged using the supplied primary key; otherwise a new table is created.
+   is merged using the supplied primary key(s); otherwise a new table is created.
+   For composite primary keys, repeat the `primary_key` field for each column.
+
 
 ## Environment Variables
 

@@ -34,7 +34,9 @@ def run_query(request: QueryRequest):
 async def upload_table(
     file: UploadFile = File(...),
     table_name: str = Form(...),
-    primary_key: str | None = Form(None),
+
+    primary_key: list[str] | None = Form(None),
+
 ) -> dict:
     """Upload a CSV or Parquet file and merge it into a DuckDB table."""
 
@@ -66,7 +68,8 @@ async def upload_table(
                 f"CREATE TABLE {table_name} AS SELECT * FROM {read_func}('{tmp_path}')"
             )
             if primary_key:
-                pk_cols = ", ".join(c.strip() for c in primary_key.split(","))
+                pk_cols = ", ".join(col.strip() for col in primary_key)
+
                 conn.execute(
                     f"ALTER TABLE {table_name} ADD PRIMARY KEY ({pk_cols})"
                 )
@@ -75,6 +78,18 @@ async def upload_table(
                 raise HTTPException(
                     status_code=400, detail="primary_key is required for upsert"
                 )
+            # Ensure the provided primary key matches the existing table definition
+            existing_pk = [
+                row[1]
+                for row in conn.execute(f"PRAGMA table_info('{table_name}')").fetchall()
+                if row[5]
+            ]
+            if set(existing_pk) != set(primary_key):
+                raise HTTPException(
+                    status_code=400,
+                    detail="primary_key must match existing table primary key",
+                )
+
             conn.execute(
                 f"INSERT OR REPLACE INTO {table_name} SELECT * FROM {read_func}('{tmp_path}')"
             )
