@@ -126,3 +126,23 @@ def test_upload_and_merge_composite_key(tmp_path):
         {"id": 3, "subid": 1, "name": "Charlie"},
     ]
 
+
+def test_upload_trims_padded_columns(tmp_path):
+    os.environ["DATABASE_PATH"] = str(tmp_path / "db.duckdb")
+
+    csv = b'"id "," name"\n1,Alice\n2,Bob\n'
+    files = {"file": ("people.csv", csv, "text/csv")}
+    data = {"table_name": "people", "primary_key": "id"}
+
+    resp = client.post("/upload", files=files, data=data)
+    assert resp.status_code == 200
+
+    query_resp = client.post(
+        "/query", json={"sql": "SELECT * FROM people ORDER BY id"}
+    )
+    assert query_resp.status_code == 200
+    assert query_resp.json() == [
+        {"id": 1, "name": "Alice"},
+        {"id": 2, "name": "Bob"},
+    ]
+
