@@ -19,6 +19,16 @@ This is a minimal FastAPI application that exposes a RESTful interface for execu
         -d '{"sql": "SELECT 1"}'
    ```
 
+4. **Upload data**
+   ```bash
+   curl -X POST http://localhost:8000/upload \\
+        -F "file=@path/to/data.csv" \\
+        -F "table_name=your_table" \\
+        -F "primary_key=id"
+   ```
+   The endpoint accepts CSV or Parquet files. If the table exists, the data
+   is merged using the supplied primary key; otherwise a new table is created.
+
 ## Environment Variables
 
 - `DATABASE_PATH` – Path to a DuckDB file on a persistent Railway volume.
