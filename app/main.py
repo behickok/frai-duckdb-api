@@ -63,9 +63,19 @@ async def upload_table(
             > 0
         )
 
+        filter_clause = ""
+        if primary_key:
+            conditions = [
+                f"{col.strip()} IS NOT NULL AND CAST({col.strip()} AS TEXT) <> ''"
+                for col in primary_key
+            ]
+            filter_clause = " WHERE " + " AND ".join(conditions)
+
+        select_query = f"SELECT * FROM {read_func}('{tmp_path}')" + filter_clause
+
         if not table_exists:
             conn.execute(
-                f"CREATE TABLE {table_name} AS SELECT * FROM {read_func}('{tmp_path}')"
+                f"CREATE TABLE {table_name} AS {select_query}"
             )
             if primary_key:
                 pk_cols = ", ".join(col.strip() for col in primary_key)
@@ -91,7 +101,7 @@ async def upload_table(
                 )
 
             conn.execute(
-                f"INSERT OR REPLACE INTO {table_name} SELECT * FROM {read_func}('{tmp_path}')"
+                f"INSERT OR REPLACE INTO {table_name} {select_query}"
             )
 
         row_count = conn.execute(
