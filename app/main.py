@@ -21,12 +21,13 @@ def run_query(request: QueryRequest):
     try:
         conn = get_connection(request.source, request.path)
         cursor = conn.execute(request.sql)
-        rows = cursor.fetchall()
         columns = [desc[0] for desc in cursor.description]
-        conn.close()
-        return {"columns": columns, "rows": rows}
+        rows = cursor.fetchall()
+        return [dict(zip(columns, row)) for row in rows]
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    finally:
+        conn.close()
 
 
 

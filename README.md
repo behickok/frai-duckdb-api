@@ -16,7 +16,11 @@ This is a minimal FastAPI application that exposes a RESTful interface for execu
    ```bash
    curl -X POST http://localhost:8000/query \\
         -H 'Content-Type: application/json' \\
-        -d '{"sql": "SELECT 1"}'
+        -d '{"sql": "SELECT 1 AS one"}'
+   ```
+   The response will be an array of objects:
+   ```json
+   [{"one": 1}]
    ```
 
 4. **Upload data**
