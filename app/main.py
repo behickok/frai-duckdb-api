@@ -56,6 +56,18 @@ async def upload_table(
 
     conn = get_connection()
     try:
+        cursor = conn.execute(
+            f"SELECT * FROM {read_func}('{tmp_path}') LIMIT 0"
+        )
+        columns = [desc[0] for desc in cursor.description]
+        column_map = {orig: orig.strip() for orig in columns}
+
+        renamed_cols = ", ".join(
+            f'"{orig}" AS "{column_map[orig]}"' if column_map[orig] != orig else f'"{orig}"'
+            for orig in columns
+        )
+        base_query = f"SELECT {renamed_cols} FROM {read_func}('{tmp_path}')"
+
         table_exists = (
             conn.execute(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_name=?",
@@ -66,28 +78,30 @@ async def upload_table(
 
         filter_clause = ""
         if primary_key:
+            primary_key = [column_map.get(col, col).strip() for col in primary_key]
             conditions = [
-                f"{col.strip()} IS NOT NULL AND CAST({col.strip()} AS TEXT) <> ''"
+                f'"{col}" IS NOT NULL AND CAST("{col}" AS TEXT) <> \'\''
                 for col in primary_key
             ]
             filter_clause = " WHERE " + " AND ".join(conditions)
 
-        select_query = f"SELECT * FROM {read_func}('{tmp_path}')" + filter_clause
+        select_query = base_query
+        if filter_clause:
+            select_query = f"SELECT * FROM ({base_query})" + filter_clause
 
         if not table_exists:
             conn.execute(
                 f"CREATE TABLE {table_name} AS {select_query}"
             )
             if primary_key:
-                pk_cols = ", ".join(col.strip() for col in primary_key)
-
+                pk_cols = ", ".join(f'"{col}"' for col in primary_key)
                 conn.execute(
                     f"ALTER TABLE {table_name} ADD PRIMARY KEY ({pk_cols})"
                 )
         else:
             if not primary_key:
                 raise HTTPException(
-                    status_code=400, detail="primary_key is required for upsert"
+                    status_code=400, detail="primary_key is required for upsert",
                 )
             # Ensure the provided primary key matches the existing table definition
             existing_pk = [
