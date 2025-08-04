@@ -28,6 +28,14 @@ def test_query_parquet(tmp_path):
     assert response.json() == [{"id": 1}]
 
 
+def test_query_sql_file():
+    sql = b"SELECT 42 AS answer"
+    files = {"sql_file": ("query.sql", sql, "application/sql")}
+    response = client.post("/query-file", files=files)
+    assert response.status_code == 200
+    assert response.json() == [{"answer": 42}]
+
+
 def test_upload_and_merge(tmp_path):
     os.environ["DATABASE_PATH"] = str(tmp_path / "db.duckdb")
 
