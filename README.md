@@ -23,6 +23,12 @@ This is a minimal FastAPI application that exposes a RESTful interface for execu
    [{"one": 1}]
    ```
 
+   Longer queries can be provided as a `.sql` file:
+   ```bash
+   curl -X POST http://localhost:8000/query-file \\
+        -F "sql_file=@path/to/query.sql"
+   ```
+
 4. **Upload data**
    ```bash
    curl -X POST http://localhost:8000/upload \\

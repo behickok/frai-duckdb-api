@@ -30,6 +30,27 @@ def run_query(request: QueryRequest):
         conn.close()
 
 
+@app.post("/query-file")
+async def run_query_file(
+    sql_file: UploadFile = File(...),
+    source: str = Form("duckdb"),
+    path: str | None = Form(None),
+):
+    if Path(sql_file.filename or "").suffix.lower() != ".sql":
+        raise HTTPException(status_code=400, detail="Only .sql files are supported")
+    sql = (await sql_file.read()).decode("utf-8")
+    try:
+        conn = get_connection(source, path)
+        cursor = conn.execute(sql)
+        columns = [desc[0] for desc in cursor.description]
+        rows = cursor.fetchall()
+        return [dict(zip(columns, row)) for row in rows]
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    finally:
+        conn.close()
+
+
 
 @app.post("/upload")
 async def upload_table(
