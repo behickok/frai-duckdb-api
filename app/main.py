@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
 from pydantic import BaseModel
 from app.db import get_connection
+from app.auth import AuthContext, get_auth_context
 import os
 import tempfile
 import shutil
@@ -17,10 +18,12 @@ class QueryRequest(BaseModel):
 
 
 @app.post("/query")
-def run_query(request: QueryRequest):
+def run_query(request: QueryRequest, auth: AuthContext = Depends(get_auth_context)):
     try:
-        conn = get_connection(request.source, request.path)
-        cursor = conn.execute(request.sql)
+        sql = auth.rewrite_query(request.sql)
+        path = auth.db_path if auth.db_path and request.path is None else request.path
+        conn = get_connection(request.source, path)
+        cursor = conn.execute(sql)
         columns = [desc[0] for desc in cursor.description]
         rows = cursor.fetchall()
         return [dict(zip(columns, row)) for row in rows]
@@ -35,11 +38,14 @@ async def run_query_file(
     sql_file: UploadFile = File(...),
     source: str = Form("duckdb"),
     path: str | None = Form(None),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     if Path(sql_file.filename or "").suffix.lower() != ".sql":
         raise HTTPException(status_code=400, detail="Only .sql files are supported")
     sql = (await sql_file.read()).decode("utf-8")
+    sql = auth.rewrite_query(sql)
     try:
+        path = auth.db_path if auth.db_path and path is None else path
         conn = get_connection(source, path)
         cursor = conn.execute(sql)
         columns = [desc[0] for desc in cursor.description]
@@ -59,6 +65,8 @@ async def upload_table(
 
     primary_key: list[str] | None = Form(None),
 
+    auth: AuthContext = Depends(get_auth_context),
+
 ) -> dict:
     """Upload a CSV or Parquet file and merge it into a DuckDB table."""
 
@@ -75,7 +83,7 @@ async def upload_table(
 
     read_func = "read_csv_auto" if suffix == ".csv" else "read_parquet"
 
-    conn = get_connection()
+    conn = get_connection(path=auth.db_path)
     try:
         cursor = conn.execute(
             f"SELECT * FROM {read_func}('{tmp_path}') LIMIT 0"
