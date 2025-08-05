@@ -4,7 +4,10 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
-client = TestClient(app)
+TOKEN = "testtoken"
+os.environ["API_TOKENS"] = TOKEN
+
+client = TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"})
 
 
 def test_query_duckdb():
@@ -153,4 +156,10 @@ def test_upload_trims_padded_columns(tmp_path):
         {"id": 1, "name": "Alice"},
         {"id": 2, "name": "Bob"},
     ]
+
+
+def test_requires_authentication():
+    unauth_client = TestClient(app)
+    response = unauth_client.post("/query", json={"sql": "SELECT 1"})
+    assert response.status_code == 401
 

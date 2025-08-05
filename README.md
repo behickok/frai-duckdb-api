@@ -47,6 +47,9 @@ This is a minimal FastAPI application that exposes a RESTful interface for execu
 
 - `DATABASE_PATH` – Path to a DuckDB file on a persistent Railway volume.
 - `MOTHERDUCK_TOKEN` – Authentication token for MotherDuck connections.
+- `API_TOKENS` – Comma-separated list of allowed bearer tokens. Tokens may
+  optionally include a database path using the format `token:db_path` to enable
+  future per-token database routing.
 
 ## Deployment on Railway
 
