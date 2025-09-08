@@ -35,6 +35,7 @@ This is a minimal FastAPI application that exposes a RESTful interface for execu
 
        -F "file=@path/to/data.csv" \\
        -F "table_name=your_table" \\
+       -F "schema=optional_schema" \\
        -F "primary_key=id" \\
        -F "primary_key=other_id"
    ```
