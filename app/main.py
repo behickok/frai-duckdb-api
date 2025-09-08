@@ -62,7 +62,7 @@ async def run_query_file(
 async def upload_table(
     file: UploadFile = File(...),
     table_name: str = Form(...),
-
+    schema_: str | None = Form(None, alias="schema"),
     primary_key: list[str] | None = Form(None),
 
     auth: AuthContext = Depends(get_auth_context),
@@ -72,6 +72,11 @@ async def upload_table(
 
     if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", table_name):
         raise HTTPException(status_code=400, detail="Invalid table name")
+
+    schema = schema_
+
+    if schema and not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", schema):
+        raise HTTPException(status_code=400, detail="Invalid schema name")
 
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in {".csv", ".parquet"}:
@@ -85,6 +90,10 @@ async def upload_table(
 
     conn = get_connection(path=auth.db_path)
     try:
+        if schema:
+            conn.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+        full_table_name = f"{schema}.{table_name}" if schema else table_name
+
         cursor = conn.execute(
             f"SELECT * FROM {read_func}('{tmp_path}') LIMIT 0"
         )
@@ -97,13 +106,14 @@ async def upload_table(
         )
         base_query = f"SELECT {renamed_cols} FROM {read_func}('{tmp_path}')"
 
-        table_exists = (
-            conn.execute(
-                "SELECT COUNT(*) FROM information_schema.tables WHERE table_name=?",
-                [table_name],
-            ).fetchone()[0]
-            > 0
+        table_exists_query = (
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_name=?"
         )
+        params = [table_name]
+        if schema:
+            table_exists_query += " AND table_schema=?"
+            params.append(schema)
+        table_exists = conn.execute(table_exists_query, params).fetchone()[0] > 0
 
         filter_clause = ""
         if primary_key:
@@ -120,12 +130,12 @@ async def upload_table(
 
         if not table_exists:
             conn.execute(
-                f"CREATE TABLE {table_name} AS {select_query}"
+                f"CREATE TABLE {full_table_name} AS {select_query}"
             )
             if primary_key:
                 pk_cols = ", ".join(f'"{col}"' for col in primary_key)
                 conn.execute(
-                    f"ALTER TABLE {table_name} ADD PRIMARY KEY ({pk_cols})"
+                    f"ALTER TABLE {full_table_name} ADD PRIMARY KEY ({pk_cols})"
                 )
         else:
             if not primary_key:
@@ -135,7 +145,7 @@ async def upload_table(
             # Ensure the provided primary key matches the existing table definition
             existing_pk = [
                 row[1]
-                for row in conn.execute(f"PRAGMA table_info('{table_name}')").fetchall()
+                for row in conn.execute(f"PRAGMA table_info('{full_table_name}')").fetchall()
                 if row[5]
             ]
             if set(existing_pk) != set(primary_key):
@@ -145,13 +155,13 @@ async def upload_table(
                 )
 
             conn.execute(
-                f"INSERT OR REPLACE INTO {table_name} {select_query}"
+                f"INSERT OR REPLACE INTO {full_table_name} {select_query}"
             )
 
         row_count = conn.execute(
-            f"SELECT COUNT(*) FROM {table_name}"
+            f"SELECT COUNT(*) FROM {full_table_name}"
         ).fetchone()[0]
-        return {"table": table_name, "rows": row_count}
+        return {"schema": schema, "table": table_name, "rows": row_count}
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - defensive

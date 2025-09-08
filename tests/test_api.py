@@ -158,6 +158,24 @@ def test_upload_trims_padded_columns(tmp_path):
     ]
 
 
+def test_upload_with_schema(tmp_path):
+    os.environ["DATABASE_PATH"] = str(tmp_path / "db.duckdb")
+
+    csv = b"id,name\n1,Alice\n"
+    files = {"file": ("people.csv", csv, "text/csv")}
+    data = {"table_name": "people", "primary_key": "id", "schema": "myschema"}
+
+    resp = client.post("/upload", files=files, data=data)
+    assert resp.status_code == 200
+    assert resp.json()["schema"] == "myschema"
+
+    query_resp = client.post(
+        "/query", json={"sql": "SELECT * FROM myschema.people"}
+    )
+    assert query_resp.status_code == 200
+    assert query_resp.json() == [{"id": 1, "name": "Alice"}]
+
+
 def test_requires_authentication():
     unauth_client = TestClient(app)
     response = unauth_client.post("/query", json={"sql": "SELECT 1"})
